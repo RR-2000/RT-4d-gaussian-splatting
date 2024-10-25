@@ -96,3 +96,6 @@ def fov2focal(fov, pixels):
 
 def focal2fov(focal, pixels):
     return 2*math.atan(pixels/(2*focal))
+
+def ndc2Pix(v, S):
+    return ((v + 1.0) * S - 1.0) * 0.5

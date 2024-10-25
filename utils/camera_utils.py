@@ -12,11 +12,71 @@
 from scene.cameras import Camera
 import numpy as np
 from utils.general_utils import PILtoTorch
+from utils.image_utils import load_img
 from utils.graphics_utils import fov2focal
+from dataclasses import dataclass
 
 WARNED = False
+@dataclass
+class Intrinsics:
+    width: int
+    height: int
+    focal_x: float
+    focal_y: float
+    center_x: float
+    center_y: float
+
+    focal_xs: list
+    focal_ys: list
+    center_xs: list
+    center_ys: list
+    def convert_to_array(self):
+        self.focal_xs = np.array(self.focal_xs, dtype=np.float64)
+        self.focal_ys = np.array(self.focal_ys, dtype=np.float64)
+        self.center_xs = np.array(self.center_xs, dtype=np.float64)
+        self.center_ys = np.array(self.center_ys, dtype=np.float64)
+
+    def scale(self, factor: float):
+        self.convert_to_array()
+        nw = round(self.width * factor)
+        nh = round(self.height * factor)
+        sw = nw / self.width
+        sh = nh / self.height
+        self.focal_x *= sw
+        self.focal_y *= sh
+        self.center_x *= sw
+        self.center_y *= sh
+        self.width = int(nw)
+        self.height = int(nh)
+        self.focal_xs = self.focal_xs * sw
+        self.focal_ys = self.focal_ys * sh
+        self.center_xs = self.center_xs * sw
+        self.center_ys = self.center_ys * sh
+
+    def append(self, focal_x, focal_y, center_x, center_y):
+        self.focal_xs.append(focal_x)
+        self.focal_ys.append(focal_y)
+        self.center_xs.append(center_x)
+        self.center_ys.append(center_y)
+
+    def __repr__(self):
+        return (f"Intrinsics(width={self.width}, height={self.height}, "
+                f"focal_x={self.focal_x}, focal_y={self.focal_y}, "
+                f"center_x={self.center_x}, center_y={self.center_y})")
+
 
 def loadCam(args, id, cam_info, resolution_scale):
+    if cam_info.image_path is None:
+        return Camera(colmap_id=cam_info.uid, R=cam_info.R, T=cam_info.T, 
+                  FoVx=cam_info.FovX, FoVy=cam_info.FovY, 
+                  image=gt_image,
+                  image_name=cam_info.image_name, uid=id, data_device=args.data_device, 
+                  timestamp=cam_info.timestamp,
+                  cx=cx, cy=cy, fl_x=fl_x, fl_y=fl_y, depth=depth, resolution=resolution, image_path=cam_info.image_path,
+                  meta_only=args.dataloader
+                  )
+                
+
     orig_w, orig_h = cam_info.width, cam_info.height# cam_info.image.size
 
     if args.resolution in [1, 2, 3, 4, 8]:
@@ -46,13 +106,23 @@ def loadCam(args, id, cam_info, resolution_scale):
     
     loaded_mask = None
     if not args.dataloader:
-        resized_image_rgb = PILtoTorch(cam_info.image, resolution)
+        if cam_info.image is None: 
+            resized_image_rgb = PILtoTorch(cam_info.image, resolution)
+        else:
+            image, mask = load_img(cam_info.image_path, white_background = cam_info.white_background)
+            resized_image_rgb = PILtoTorch(image, resolution)
+        # resized_image_rgb = PILtoTorch(cam_info.image, resolution)
         gt_image = resized_image_rgb[:3, ...]
 
         if resized_image_rgb.shape[0] == 4:
             loaded_mask = resized_image_rgb[3:4, ...]
     else:
-        gt_image = cam_info.image
+        if cam_info.image is not None: 
+            resized_image_rgb = PILtoTorch(cam_info.image, resolution)
+        else:
+            image, mask = load_img(cam_info.image_path, white_background = cam_info.white_background)
+            resized_image_rgb = PILtoTorch(image, resolution)
+        gt_image = resized_image_rgb
     
     if cam_info.depth is not None:
         depth = PILtoTorch(cam_info.depth, resolution) * 255 / 10000

@@ -19,6 +19,7 @@ from scene.gaussian_model import GaussianModel
 from arguments import ModelParams
 from utils.camera_utils import cameraList_from_camInfos, camera_to_JSON
 from utils.data_utils import CameraDataset
+from scene.dataset import FourDGSdataset
 
 class Scene:
 
@@ -32,6 +33,7 @@ class Scene:
         self.loaded_iter = None
         self.gaussians = gaussians
         self.white_background = args.white_background
+        self.load_image_on_the_fly = args.load_image_on_the_fly
 
         if load_iteration:
             if load_iteration == -1:
@@ -42,9 +44,22 @@ class Scene:
 
         self.train_cameras = {}
         self.test_cameras = {}
+        self.video_cameras = {}
 
         if os.path.exists(os.path.join(args.source_path, "sparse")):
             scene_info = sceneLoadTypeCallbacks["Colmap"](args.source_path, args.images, args.eval, num_pts_ratio=num_pts_ratio)
+        
+        elif os.path.exists(os.path.join(args.source_path, "frames_1")):
+            print("Found frames_1 directory, assuming Brics data set!")
+            scene_info = sceneLoadTypeCallbacks["Brics"](
+                args.source_path,
+                white_background=args.white_background,
+                start_t=args.start_t,
+                num_t=args.num_t,
+                load_image_on_the_fly = args.load_image_on_the_fly,
+            )
+            dataset_type="brics"
+
         elif os.path.exists(os.path.join(args.source_path, "transforms_train.json")):
             print("Found transforms_train.json file, assuming Blender data set!")
             scene_info = sceneLoadTypeCallbacks["Blender"](args.source_path, args.white_background, args.eval, num_pts=num_pts, time_duration=time_duration, extension=args.extension, num_extra_pts=args.num_extra_pts, frame_ratio=args.frame_ratio, dataloader=args.dataloader)
@@ -71,12 +86,21 @@ class Scene:
 
         self.cameras_extent = scene_info.nerf_normalization["radius"]
 
+        # for resolution_scale in resolution_scales:
+        #     print("Loading Training Cameras")
+        #     self.train_cameras[resolution_scale] = cameraList_from_camInfos(scene_info.train_cameras, resolution_scale, args)
+        #     print("Loading Test Cameras")
+        #     self.test_cameras[resolution_scale] = cameraList_from_camInfos(scene_info.test_cameras, resolution_scale, args)
         for resolution_scale in resolution_scales:
             print("Loading Training Cameras")
-            self.train_cameras[resolution_scale] = cameraList_from_camInfos(scene_info.train_cameras, resolution_scale, args)
+            self.train_cameras[resolution_scale] = FourDGSdataset(scene_info.train_cameras, args, resolution_scale) if args.load_image_on_the_fly else cameraList_from_camInfos(scene_info.train_cameras, resolution_scale, args)
+
+            print("Loading Video Cameras")
+            self.video_cameras[resolution_scale] = FourDGSdataset(scene_info.video_cameras, args, resolution_scale) if args.load_image_on_the_fly else cameraList_from_camInfos(scene_info.video_cameras, resolution_scale, args)
+
             print("Loading Test Cameras")
-            self.test_cameras[resolution_scale] = cameraList_from_camInfos(scene_info.test_cameras, resolution_scale, args)
-            
+            self.test_cameras[resolution_scale] = FourDGSdataset(scene_info.test_cameras, args, resolution_scale) if args.load_image_on_the_fly else cameraList_from_camInfos(scene_info.test_cameras, resolution_scale, args)
+
         if args.loaded_pth:
             self.gaussians.create_from_pth(args.loaded_pth, self.cameras_extent)
         else:
@@ -92,7 +116,19 @@ class Scene:
         torch.save((self.gaussians.capture(), iteration), self.model_path + "/chkpnt" + str(iteration) + ".pth")
 
     def getTrainCameras(self, scale=1.0):
-        return CameraDataset(self.train_cameras[scale].copy(), self.white_background)
+        if self.load_image_on_the_fly:
+            return self.train_cameras[scale]
+        else:
+            return CameraDataset(self.train_cameras[scale].copy(), self.white_background)
         
     def getTestCameras(self, scale=1.0):
-        return CameraDataset(self.test_cameras[scale].copy(), self.white_background)
+        if self.load_image_on_the_fly:
+            return self.test_cameras[scale]
+        else:
+            return CameraDataset(self.test_cameras[scale].copy(), self.white_background)
+
+    def getVideoCameras(self, scale=1.0):
+        if self.load_image_on_the_fly:
+            return self.video_cameras[scale]
+        else:
+            return CameraDataset(self.video_cameras[scale].copy(), self.white_background)
