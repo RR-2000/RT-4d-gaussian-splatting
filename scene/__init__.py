@@ -101,16 +101,16 @@ class Scene:
             print("Loading Test Cameras")
             self.test_cameras[resolution_scale] = FourDGSdataset(scene_info.test_cameras, args, resolution_scale) if args.load_image_on_the_fly else cameraList_from_camInfos(scene_info.test_cameras, resolution_scale, args)
 
-        if args.loaded_pth:
-            self.gaussians.create_from_pth(args.loaded_pth, self.cameras_extent)
-        else:
-            if self.loaded_iter:
-                self.gaussians.load_ply(os.path.join(self.model_path,
-                                                            "point_cloud",
-                                                            "iteration_" + str(self.loaded_iter),
-                                                            "point_cloud.ply"))
-            else:
-                self.gaussians.create_from_pcd(scene_info.point_cloud, self.cameras_extent)
+        # if args.loaded_pth:
+        #     self.gaussians.create_from_pth(args.loaded_pth, self.cameras_extent)
+        # else:
+        #     if self.loaded_iter:
+        #         self.gaussians.load_ply(os.path.join(self.model_path,
+        #                                                     "point_cloud",
+        #                                                     "iteration_" + str(self.loaded_iter),
+        #                                                     "point_cloud.ply"))
+        #     else:
+        #         self.gaussians.create_from_pcd(scene_info.point_cloud, self.cameras_extent)
 
     def save(self, iteration):
         torch.save((self.gaussians.capture(), iteration), self.model_path + "/chkpnt" + str(iteration) + ".pth")

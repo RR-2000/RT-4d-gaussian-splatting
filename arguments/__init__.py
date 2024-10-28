@@ -63,6 +63,7 @@ class ModelParams(ParamGroup):
         self.loaded_pth = ""
         self.frame_ratio = 1
         self.dataloader = False
+        self.num_workers = 32
         super().__init__(parser, "Loading Parameters", sentinel)
 
     def extract(self, args):

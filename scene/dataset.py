@@ -38,7 +38,7 @@ class evalDataset(Dataset):
         self, model_path
     ):
         self.model_path = model_path
-        self.gt_paths = glob.glob(model_path+'/gt/*/*.png')
+        self.gt_paths = glob.glob(model_path+'/gt/*.png')
         
     def __getitem__(self, index):
 

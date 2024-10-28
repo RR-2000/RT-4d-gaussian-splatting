@@ -452,7 +452,7 @@ def readBrics(datadir, split, start_t: int = 0, num_t: int = 1, downsample: int 
                 [0, intrinsics.focal_ys[cam_idx], intrinsics.center_ys[cam_idx]],
                 [0, 0, 1]]
             )
-            cam_info = CameraInfo(uid=uid, timestamp=timestamp, R=R, T=T, fl_y=intrinsics.focal_ys[cam_idx], fl_x=intrinsics.focal_xs[cam_idx], 
+            cam_info = CameraInfo(uid=uid, timestamp=timestamp/float(num_t), R=R, T=T, fl_y=intrinsics.focal_ys[cam_idx], fl_x=intrinsics.focal_xs[cam_idx], 
                 cx = intrinsics.center_xs[cam_idx], cy = intrinsics.center_ys[cam_idx],
                 image = image if not load_image_on_the_fly else None,# mask = mask if not load_image_on_the_fly else None, 
                 image_path=img_path, image_name=image_name, 
@@ -472,7 +472,7 @@ def readBricsSceneInfo(path, num_pts=200_000, white_background=True, start_t=0, 
 
     # init points
     if init == 'hull':
-        first_frame_cameras = [_cam for _cam in train_cam_infos if int(_cam.timestamp)%100 == 0]
+        first_frame_cameras = [_cam for _cam in train_cam_infos if int(_cam.timestamp*num_t)%100 == 0]
         aabb = -3.0, 3.0
         grid_resolution = 128
         grid = np.linspace(aabb[0], aabb[1], grid_resolution)
@@ -568,7 +568,7 @@ def readBricsSceneInfo(path, num_pts=200_000, white_background=True, start_t=0, 
             T = Rt[:3, 3]
             video_cameras.append(CameraInfo(
                     uid=_idx,
-                    timestamp=timesteps_rev[_idx % len(timesteps_rev)], # iterate over the time cameras
+                    timestamp=timesteps_rev[_idx % len(timesteps_rev)]/float(num_t), # iterate over the time cameras
                     R=R, T=T,
                     fl_x=train_cam_infos[0].fl_x, fl_y=train_cam_infos[0].fl_y,
                     image=None, image_path=None, image_name=f"{_idx:05}", 
